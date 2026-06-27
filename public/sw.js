@@ -1,6 +1,13 @@
 // sw.js — offline-first service worker for บัญชีนวล
-// Strategy: cache-first for the app shell/static; network-only (never cache) for /api.
-const VERSION = 'mn-v2';
+// Freshness strategy (works even behind Cloudflare's 4h Browser-Cache-TTL):
+//  - sw.js itself is served no-store (CF BYPASS) → browsers always pick up new SW versions.
+//  - On install we fetch the shell with {cache:'reload'} → bypasses the HTTP cache and forces
+//    Cloudflare to revalidate, so a new SW version always caches FRESH code.
+//  - fetch() = stale-while-revalidate, and the background revalidation uses {cache:'no-cache'}
+//    so each asset self-heals to the latest on the next visit. SW-controlled pages read from
+//    Cache Storage (not the browser HTTP cache), so stale CF browser-TTL never reaches the app.
+//  - /api is never cached (live sync data).
+const VERSION = 'mn-v3';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './assets/css/app.css',
@@ -16,26 +23,37 @@ const SHELL = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL).catch(()=>{})).then(()=>self.skipWaiting()));
+  e.waitUntil((async () => {
+    const c = await caches.open(VERSION);
+    // fetch fresh (bypass HTTP cache → force CF revalidate), tolerate individual failures
+    await Promise.all(SHELL.map(async url => {
+      try { const res = await fetch(new Request(url, { cache: 'reload' })); if(res && res.ok) await c.put(url, res.clone()); } catch(_){}
+    }));
+    await self.skipWaiting();
+  })());
 });
+
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
+  e.waitUntil(caches.keys()
+    .then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
+    .then(() => self.clients.claim()));
 });
+
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  if(e.request.method !== 'GET') return;                  // mutations pass through
-  if(url.pathname.includes('/api/')) return;              // never cache API (sync data)
-  if(url.origin !== location.origin && !url.host.includes('fonts.g')) return;
+  if(e.request.method !== 'GET') return;                 // mutations pass through
+  if(url.pathname.includes('/api/')) return;             // never cache live sync data
+  const sameOrigin = url.origin === location.origin;
+  const isFont = url.host.includes('fonts.g');
+  if(!sameOrigin && !isFont) return;
 
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      const net = fetch(e.request).then(res => {
-        if(res && res.status===200 && (url.origin===location.origin || url.host.includes('fonts.g'))){
-          const clone = res.clone(); caches.open(VERSION).then(c=>c.put(e.request, clone));
-        }
-        return res;
-      }).catch(() => cached || caches.match('./index.html'));
-      return cached || net;
-    })
-  );
+  e.respondWith((async () => {
+    const cache = await caches.open(VERSION);
+    const cached = await cache.match(e.request);
+    // background revalidate, bypassing the browser HTTP cache so CF can't serve stale
+    const network = fetch(new Request(e.request, sameOrigin ? { cache: 'no-cache' } : {}))
+      .then(res => { if(res && res.status === 200) cache.put(e.request, res.clone()); return res; })
+      .catch(() => cached || cache.match('./index.html'));
+    return cached || network;                            // stale-while-revalidate
+  })());
 });
