@@ -1,0 +1,27 @@
+# --- secrets & data (NEVER commit — repo is PUBLIC) ---
+/private/
+*.sqlite
+*.sqlite-*
+*.db
+**/config.local.php
+api/config.php
+.env
+.env.*
+
+# --- theme working copy ---
+/theme_extracted/
+theme.zip
+
+# --- deps / build ---
+/node_modules/
+/vendor/
+*.log
+.DS_Store
+Thumbs.db
+
+# --- scratch ---
+/scratch/
+*.bak
+
+# local preview config (machine-specific)
+.claude/launch.json

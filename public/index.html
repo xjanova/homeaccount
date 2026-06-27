@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+  <title>บัญชีนวล — จัดการรายรับรายจ่าย</title>
+  <meta name="description" content="บัญชีนวล (MoneyNual) — เว็บแอปจัดการรายรับรายจ่ายส่วนตัว ครอบครัว และธุรกิจเล็ก ใช้งานออฟไลน์ได้ ติดตั้งบนมือถือและเดสก์ท็อป">
+  <meta name="theme-color" content="#f3eee4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="บัญชีนวล">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <style>
+    #mn-splash{position:fixed;inset:0;display:grid;place-items:center;background:#f3eee4;z-index:999;transition:opacity .4s}
+    #mn-splash .logo{width:72px;height:72px;border-radius:22px;background:linear-gradient(135deg,#e6b347,#d98e3f);display:grid;place-items:center;color:#fff;font-family:'Sora',sans-serif;font-weight:800;font-size:34px;box-shadow:7px 7px 16px #cdc1ad,-7px -7px 16px #fffdf7;animation:mnPop .6s ease both}
+    #mn-splash .lbl{margin-top:18px;font-family:'Anuphan',sans-serif;color:#9a8f7c;font-size:13px;letter-spacing:.5px}
+  </style>
+</head>
+<body>
+  <div id="mn-splash"><div style="text-align:center"><div class="logo">฿</div><div class="lbl">กำลังเปิดบัญชีนวล…</div></div></div>
+  <div id="app"></div>
+  <noscript style="display:block;padding:40px;text-align:center;font-family:sans-serif">แอปนี้ต้องเปิดใช้งาน JavaScript</noscript>
+  <script type="module" src="assets/js/main.js"></script>
+  <script>
+    // hide splash once the app paints
+    const obs = new MutationObserver(() => {
+      if(document.getElementById('mn-main') || document.getElementById('mn-page')){
+        const sp = document.getElementById('mn-splash'); if(sp){ sp.style.opacity='0'; setTimeout(()=>sp.remove(),420); } obs.disconnect();
+      }
+    });
+    obs.observe(document.getElementById('app'), { childList:true, subtree:true });
+    setTimeout(()=>{ const sp=document.getElementById('mn-splash'); if(sp) sp.remove(); }, 6000);
+  </script>
+</body>
+</html>

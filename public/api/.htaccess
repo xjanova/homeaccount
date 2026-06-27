@@ -1,0 +1,22 @@
+# Route all API requests to the front controller
+RewriteEngine On
+RewriteBase /api/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Never serve config or library sources directly
+<FilesMatch "\.(sqlite|db|log)$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "^(config\.php|config\.local\.php)$">
+  Require all denied
+</FilesMatch>
+
+# No directory listing
+Options -Indexes
+
+# Send Authorization header through to PHP (some CGI/FPM setups strip it)
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+RewriteCond %{HTTP:Authorization} ^(.+)$
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%1]
