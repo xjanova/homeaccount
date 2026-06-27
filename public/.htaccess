@@ -1,0 +1,5 @@
+# บัญชีนวล static hosting — correct MIME types for PWA assets (mod_mime, always available)
+AddType application/manifest+json .webmanifest
+AddType text/javascript .js
+AddType image/svg+xml .svg
+Options -Indexes
