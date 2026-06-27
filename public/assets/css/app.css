@@ -226,6 +226,8 @@ label.lbl{ display:block; font-size:11px; font-weight:700; color:var(--ink2); ma
 .cal-cell{ min-height:var(--cal-h); border-radius:14px; background:var(--surf); box-shadow:var(--inset-sm); padding:8px 9px; display:flex; flex-direction:column; gap:4px; }
 .cal-cell.empty{ box-shadow:none; background:transparent; }
 .cal-cell.today{ box-shadow:var(--raise); outline:2px solid var(--a1); }
+.cal-cell[data-act]{ transition:box-shadow .16s ease, transform .12s ease; }
+.cal-cell[data-act]:hover{ box-shadow:var(--raise); transform:translateY(-1px); }
 .cal-cell .dn{ font-family:'Sora'; font-weight:600; font-size:12px; color:var(--ink2); }
 .cal-ev{ font-size:9.5px; font-weight:600; padding:2px 5px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 

@@ -1,6 +1,6 @@
 // sw.js — offline-first service worker for บัญชีนวล
 // Strategy: cache-first for the app shell/static; network-only (never cache) for /api.
-const VERSION = 'mn-v1';
+const VERSION = 'mn-v2';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './assets/css/app.css',
