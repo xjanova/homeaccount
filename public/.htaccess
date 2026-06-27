@@ -4,12 +4,21 @@ AddType text/javascript .js
 AddType image/svg+xml .svg
 Options -Indexes
 
-# Never cache the service worker, app shell, or manifest so updates propagate
-# immediately (mod_headers is optional — guarded so a missing module can't 500).
+# Caching policy (mod_headers optional — guarded so a missing module can't 500):
+# - service worker / shell / manifest: never cache (no-store) so updates land now
+# - app code (js/css): always revalidate (no-cache) — the SW provides offline,
+#   so we trade a cheap 304 for guaranteed-fresh code on every visit
+# - images/fonts: long cache (rarely change)
 <IfModule mod_headers.c>
   <FilesMatch "^(sw\.js|index\.html|manifest\.webmanifest)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
+  </FilesMatch>
+  <FilesMatch "\.(js|css)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  <FilesMatch "\.(png|jpg|jpeg|svg|webp|woff2?)$">
+    Header set Cache-Control "public, max-age=604800"
   </FilesMatch>
 </IfModule>
 <IfModule mod_expires.c>
