@@ -54,5 +54,15 @@ class Db {
       );
       CREATE INDEX IF NOT EXISTS idx_attempts_ip ON auth_attempts(ip, ts);
     SQL);
+
+    // ---- incremental migrations (idempotent; safe on existing DBs) ----
+    self::addColumn($db, 'users', 'google_sub', 'TEXT');
+  }
+
+  // add a column only if it does not already exist (SQLite has no ADD COLUMN IF NOT EXISTS)
+  static function addColumn(PDO $db, string $table, string $col, string $type): void {
+    $cols = $db->query('PRAGMA table_info(' . $table . ')')->fetchAll();
+    foreach($cols as $c){ if(($c['name'] ?? '') === $col) return; }
+    $db->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $col . ' ' . $type);
   }
 }

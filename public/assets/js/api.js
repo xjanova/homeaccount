@@ -24,6 +24,8 @@ export class ApiError extends Error{
 export const api = {
   register: (email, password, name) => req('/auth/register', { method:'POST', auth:false, body:{ email, password, name } }),
   login:    (email, password)       => req('/auth/login',    { method:'POST', auth:false, body:{ email, password } }),
+  authConfig: ()                     => req('/auth/config', { auth:false }),
+  googleAuth: (credential)           => req('/auth/google', { method:'POST', auth:false, body:{ credential } }),
   me:       ()                       => req('/me'),
   health:   ()                       => req('/health', { auth:false }),
   pull:     (since)                  => req('/sync/pull', { method:'POST', body:{ since } }),
@@ -31,7 +33,7 @@ export const api = {
   members:  ()                       => req('/household/members'),
   invite:   (email)                  => req('/household/invite', { method:'POST', body:{ email } }),
   setRole:  (userId, role)           => req('/household/role',   { method:'POST', body:{ userId, role } }),
-  removeMember:(userId)              => req('/household/remove', { method:'POST', body:{ userId } }),
+  removeMember:(userId, email)       => req('/household/remove', { method:'POST', body:{ userId, email } }),
   setPlan:  (plan, cycle)            => req('/billing/plan',     { method:'POST', body:{ plan, cycle } }),
   invoices: ()                       => req('/billing/invoices'),
 };

@@ -11,4 +11,9 @@ return [
   // brute-force throttle: max failed auth attempts per IP per window
   'auth_max_attempts' => 8,
   'auth_window_sec'   => 600,
+  // Google Sign-In: paste your OAuth 2.0 *Web* client ID here to enable the
+  // "ดำเนินการต่อด้วย Google" button. Leave '' to keep it hidden (no dead button).
+  // Create at https://console.cloud.google.com/apis/credentials and add
+  // https://hacc.xman4289.com to "Authorized JavaScript origins".
+  'google_client_id' => '',
 ];

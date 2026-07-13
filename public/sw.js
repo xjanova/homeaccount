@@ -7,7 +7,7 @@
 //    so each asset self-heals to the latest on the next visit. SW-controlled pages read from
 //    Cache Storage (not the browser HTTP cache), so stale CF browser-TTL never reaches the app.
 //  - /api is never cached (live sync data).
-const VERSION = 'mn-v3';
+const VERSION = 'mn-v4';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './assets/css/app.css',

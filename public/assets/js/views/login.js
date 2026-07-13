@@ -9,6 +9,11 @@ import { afterLogin } from '../sync.js';
 let mode = 'login';
 let busy = false;
 
+// Google Sign-In state (lazy — only touched when online & configured)
+let _authCfg = null;      // cached { google_client_id } once fetched
+let _gisScript = null;    // promise resolving true once the GIS script has loaded
+let _gisInited = false;   // google.accounts.id.initialize() done once
+
 export function render(ctx){
   const { icon } = ctx;
   const signup = mode === 'signup';
@@ -22,13 +27,17 @@ export function render(ctx){
       <div class="field">${icon('user',18)}<input id="mn-name" type="text" autocomplete="name" placeholder="ชื่อของคุณ"></div>
     </div>` : '';
 
-  const forgotLink = signup ? '' : `
-    <div class="right mt6"><a class="small b t-gold" data-act="forgotPass" style="cursor:pointer">ลืมรหัสผ่าน?</a></div>`;
-
   const submitLabel = signup ? 'สมัครฟรี' : 'เข้าสู่ระบบ';
   const toggleText = signup
     ? `มีบัญชีแล้ว? <a class="b t-gold" data-act="toggleAuthMode" style="cursor:pointer">เข้าสู่ระบบ</a>`
     : `ยังไม่มีบัญชี? <a class="b t-gold" data-act="toggleAuthMode" style="cursor:pointer">สมัครฟรี</a>`;
+
+  // Google block starts hidden; initGoogle() reveals it only when a client id is configured & online.
+  const googleBlock = `
+    <div id="mn-gauth" style="display:none">
+      <div id="mn-gbtn" style="display:flex;justify-content:center;min-height:44px"></div>
+      <div class="divider">หรือ</div>
+    </div>`;
 
   return `
   <div class="auth-wrap">
@@ -39,9 +48,7 @@ export function render(ctx){
         <div class="muted small mb18">${ctx.esc(sub)}</div>
       </div>
 
-      <button class="btn block" data-act="googleLogin">${icon('google',18)} ดำเนินการต่อด้วย Google</button>
-
-      <div class="divider">หรือ</div>
+      ${googleBlock}
 
       <form data-act="submitAuth">
         ${nameField}
@@ -53,7 +60,6 @@ export function render(ctx){
           <label class="lbl" for="mn-pass">รหัสผ่าน</label>
           <div class="field">${icon('lock',18)}<input id="mn-pass" type="password" autocomplete="${signup?'new-password':'current-password'}" placeholder="••••••••"></div>
         </div>
-        ${forgotLink}
         <button type="submit" class="btn-primary btn block mt18" ${busy?'disabled':''}>${busy?'กำลังดำเนินการ…':submitLabel}</button>
       </form>
 
@@ -69,6 +75,69 @@ export function render(ctx){
 export function afterRender(ctx, root){
   const email = root.querySelector('#mn-email');
   if(email) email.focus();
+  initGoogle(root); // no-op when offline or not configured
+}
+
+// ---- Google Identity Services ----
+function loadGis(){
+  if(globalThis.google?.accounts?.id) return Promise.resolve(true);
+  if(!_gisScript){
+    _gisScript = new Promise(resolve => {
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.async = true; s.defer = true;
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+    });
+  }
+  return _gisScript;
+}
+
+async function initGoogle(root){
+  const holder = root.querySelector('#mn-gauth');
+  const btn = root.querySelector('#mn-gbtn');
+  if(!holder || !btn) return;
+  try{
+    if(_authCfg == null) _authCfg = await api.authConfig().catch(() => ({}));
+  }catch(_){ _authCfg = {}; }
+  const cid = _authCfg && _authCfg.google_client_id;
+  if(!cid) return;                                   // not configured → stays hidden, no dead button
+  const ok = await loadGis();
+  if(!ok || !globalThis.google?.accounts?.id) return;
+  try{
+    if(!_gisInited){
+      google.accounts.id.initialize({ client_id: cid, callback: onGoogleCredential, auto_select: false });
+      _gisInited = true;
+    }
+    holder.style.display = '';
+    btn.innerHTML = '';
+    google.accounts.id.renderButton(btn, {
+      theme: 'outline', size: 'large', type: 'standard',
+      text: 'continue_with', shape: 'pill', logo_alignment: 'center',
+      width: Math.min(Math.max(btn.clientWidth || 320, 240), 360),
+    });
+  }catch(_){ /* keep the email/password form usable regardless */ }
+}
+
+async function onGoogleCredential(resp){
+  const credential = resp && resp.credential;
+  if(!credential || busy) return;
+  busy = true; Store.notify();
+  try{
+    const data = await api.googleAuth(credential);
+    setToken(data.token);
+    Store.state.session = data;
+    await kvSet('session', data);
+    await afterLogin();
+    Store.set({ view:'dashboard' });
+    toast('เข้าสู่ระบบด้วย Google สำเร็จ');
+  }catch(e){
+    if(e instanceof ApiError && e.status === 0) toast('ออฟไลน์อยู่ — ใช้งานแบบไม่ล็อกอินได้เลย');
+    else toast(e?.message || 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ');
+  }finally{
+    busy = false; Store.notify();
+  }
 }
 
 export const actions = {
@@ -76,9 +145,6 @@ export const actions = {
     mode = mode === 'login' ? 'signup' : 'login';
     Store.notify();
   },
-
-  googleLogin(){ toast('ฟีเจอร์นี้เปิดให้บริการเร็วๆ นี้'); },
-  forgotPass(){ toast('ฟีเจอร์นี้เปิดให้บริการเร็วๆ นี้'); },
 
   async submitAuth(el, ev){
     if(ev) ev.preventDefault();

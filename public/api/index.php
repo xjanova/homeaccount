@@ -39,6 +39,13 @@ switch(true){
   case $path === '/auth/login' && $method === 'POST':
     Auth::login($db, $cfg, Http::body());
 
+  // public: lets the client know whether Google Sign-In is configured (client id is public)
+  case $path === '/auth/config' && $method === 'GET':
+    Http::json(['google_client_id' => (string)($cfg['google_client_id'] ?? '')]);
+
+  case $path === '/auth/google' && $method === 'POST':
+    Auth::google($db, $cfg, Http::body());
+
   case $path === '/me' && $method === 'GET': {
     [$user,$hh] = Http::requireUser($db);
     Http::json(['user'=>Auth::publicUser($user), 'household'=>Auth::publicHousehold($hh)]);
@@ -112,10 +119,18 @@ switch(true){
 
   case $path === '/household/remove' && $method === 'POST': {
     [$user,$hh] = Http::requireUser($db); requirePro($user);
-    if($hh['owner_id'] !== $user['id']) Http::fail('forbidden','เฉพาะเจ้าของเท่านั้น',403);
-    $uid = Http::body()['userId'] ?? '';
-    $db->prepare('DELETE FROM household_members WHERE household_id=? AND user_id=? AND role<>\'owner\'')->execute([$user['household_id'], $uid]);
-    $db->prepare('UPDATE users SET household_id=NULL WHERE id=? AND household_id=?')->execute([$uid, $user['household_id']]);
+    if(!$hh || $hh['owner_id'] !== $user['id']) Http::fail('forbidden','เฉพาะเจ้าของเท่านั้น',403);
+    $b = Http::body();
+    $uid = $b['userId'] ?? '';
+    $email = strtolower(trim($b['email'] ?? ''));
+    if($uid){
+      // remove a registered member (never the owner, never yourself)
+      $db->prepare('DELETE FROM household_members WHERE household_id=? AND user_id=? AND role<>\'owner\'')->execute([$user['household_id'], $uid]);
+      $db->prepare('UPDATE users SET household_id=NULL WHERE id=? AND household_id=? AND id<>?')->execute([$uid, $user['household_id'], $user['id']]);
+    } elseif($email){
+      // cancel a still-pending email invite (no linked user yet)
+      $db->prepare('DELETE FROM household_members WHERE household_id=? AND invited_email=? AND user_id IS NULL')->execute([$user['household_id'], $email]);
+    }
     Http::json(['ok'=>true, 'members'=>household_members($db, $user['household_id'])]);
   }
 
